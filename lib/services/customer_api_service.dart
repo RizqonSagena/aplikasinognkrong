@@ -1,0 +1,464 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../models/tongkrongan.dart';
+import '../models/review.dart';
+import '../models/booking.dart';
+import '../models/favorite.dart';
+import '../models/customer_user.dart';
+import '../models/api_response.dart';
+import '../config/app_config.dart';
+import '../utils/logger.dart';
+
+/// Service untuk menangani API calls untuk fitur customer
+class CustomerApiService {
+  static const String _baseUrl = 'https://api.nongkrong.local/v1';
+  static const Duration _timeout = Duration(seconds: 30);
+
+  final http.Client _httpClient;
+
+  CustomerApiService({http.Client? httpClient})
+      : _httpClient = httpClient ?? http.Client();
+
+  /// Helper untuk menambahkan headers
+  Map<String, String> _getHeaders({String? token}) {
+    return {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
+
+  /// Helper untuk handle response
+  T _handleResponse<T>(
+    http.Response response,
+    T Function(Map<String, dynamic>) parser,
+  ) {
+    Logger.info('API Response: ${response.statusCode}');
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      try {
+        final jsonData = jsonDecode(response.body) as Map<String, dynamic>;
+        return parser(jsonData);
+      } catch (e) {
+        Logger.error('Error parsing response: $e');
+        throw Exception('Failed to parse response: $e');
+      }
+    } else if (response.statusCode == 401) {
+      throw Exception('Unauthorized - Please login again');
+    } else if (response.statusCode == 403) {
+      throw Exception('Forbidden - Access denied');
+    } else if (response.statusCode == 404) {
+      throw Exception('Not found');
+    } else if (response.statusCode == 500) {
+      throw Exception('Server error');
+    } else {
+      throw Exception('Error: ${response.statusCode}');
+    }
+  }
+
+  // ==================== TONGKRONGAN ENDPOINTS ====================
+
+  /// Get semua tongkrongan dengan filter
+  Future<List<Tongkrongan>> getTongkrongan({
+    int page = 1,
+    int pageSize = 20,
+    String? city,
+    String? category,
+    String? query,
+  }) async {
+    try {
+      final params = <String, String>{
+        'page': page.toString(),
+        'pageSize': pageSize.toString(),
+        if (city != null) 'city': city,
+        if (category != null) 'category': category,
+        if (query != null) 'query': query,
+      };
+
+      final uri = Uri.parse('$_baseUrl/tongkrongan')
+          .replace(queryParameters: params);
+
+      Logger.info('Fetching tongkrongan: $uri');
+
+      final response = await _httpClient
+          .get(uri, headers: _getHeaders())
+          .timeout(_timeout);
+
+      return _handleResponse(response, (json) {
+        final data = (json['data'] as List)
+            .map((item) => Tongkrongan.fromJson(item as Map<String, dynamic>))
+            .toList();
+        return data;
+      });
+    } catch (e) {
+      Logger.error('Error fetching tongkrongan: $e');
+      rethrow;
+    }
+  }
+
+  /// Get detail tongkrongan
+  Future<Tongkrongan> getTongkronganDetail(String id) async {
+    try {
+      final uri = Uri.parse('$_baseUrl/tongkrongan/$id');
+      Logger.info('Fetching tongkrongan detail: $uri');
+
+      final response = await _httpClient
+          .get(uri, headers: _getHeaders())
+          .timeout(_timeout);
+
+      return _handleResponse(response, (json) {
+        return Tongkrongan.fromJson(json['data'] as Map<String, dynamic>);
+      });
+    } catch (e) {
+      Logger.error('Error fetching tongkrongan detail: $e');
+      rethrow;
+    }
+  }
+
+  /// Search tongkrongan
+  Future<List<Tongkrongan>> searchTongkrongan(String query) async {
+    try {
+      final params = {'q': query};
+      final uri = Uri.parse('$_baseUrl/tongkrongan/search')
+          .replace(queryParameters: params);
+
+      Logger.info('Searching tongkrongan: $uri');
+
+      final response = await _httpClient
+          .get(uri, headers: _getHeaders())
+          .timeout(_timeout);
+
+      return _handleResponse(response, (json) {
+        final data = (json['data'] as List)
+            .map((item) => Tongkrongan.fromJson(item as Map<String, dynamic>))
+            .toList();
+        return data;
+      });
+    } catch (e) {
+      Logger.error('Error searching tongkrongan: $e');
+      rethrow;
+    }
+  }
+
+  // ==================== REVIEW ENDPOINTS ====================
+
+  /// Get reviews untuk tongkrongan
+  Future<List<Review>> getReviews(
+    String tongkronganId, {
+    int page = 1,
+    int pageSize = 10,
+  }) async {
+    try {
+      final params = <String, String>{
+        'page': page.toString(),
+        'pageSize': pageSize.toString(),
+      };
+
+      final uri = Uri.parse('$_baseUrl/tongkrongan/$tongkronganId/reviews')
+          .replace(queryParameters: params);
+
+      Logger.info('Fetching reviews: $uri');
+
+      final response = await _httpClient
+          .get(uri, headers: _getHeaders())
+          .timeout(_timeout);
+
+      return _handleResponse(response, (json) {
+        final data = (json['data'] as List)
+            .map((item) => Review.fromJson(item as Map<String, dynamic>))
+            .toList();
+        return data;
+      });
+    } catch (e) {
+      Logger.error('Error fetching reviews: $e');
+      rethrow;
+    }
+  }
+
+  /// Create review
+  Future<Review> createReview(
+    String tongkronganId, {
+    required double rating,
+    required String title,
+    required String comment,
+    required String token,
+    List<String>? imageUrls,
+  }) async {
+    try {
+      final body = {
+        'rating': rating,
+        'title': title,
+        'comment': comment,
+        if (imageUrls != null) 'imageUrls': imageUrls,
+      };
+
+      final uri = Uri.parse('$_baseUrl/tongkrongan/$tongkronganId/reviews');
+      Logger.info('Creating review: $uri');
+
+      final response = await _httpClient
+          .post(
+            uri,
+            headers: _getHeaders(token: token),
+            body: jsonEncode(body),
+          )
+          .timeout(_timeout);
+
+      return _handleResponse(response, (json) {
+        return Review.fromJson(json['data'] as Map<String, dynamic>);
+      });
+    } catch (e) {
+      Logger.error('Error creating review: $e');
+      rethrow;
+    }
+  }
+
+  // ==================== BOOKING ENDPOINTS ====================
+
+  /// Get bookings untuk user
+  Future<List<Booking>> getMyBookings({
+    required String token,
+    String? status,
+  }) async {
+    try {
+      final params = <String, String>{
+        if (status != null) 'status': status,
+      };
+
+      final uri = Uri.parse('$_baseUrl/bookings')
+          .replace(queryParameters: params);
+
+      Logger.info('Fetching bookings: $uri');
+
+      final response = await _httpClient
+          .get(uri, headers: _getHeaders(token: token))
+          .timeout(_timeout);
+
+      return _handleResponse(response, (json) {
+        final data = (json['data'] as List)
+            .map((item) => Booking.fromJson(item as Map<String, dynamic>))
+            .toList();
+        return data;
+      });
+    } catch (e) {
+      Logger.error('Error fetching bookings: $e');
+      rethrow;
+    }
+  }
+
+  /// Get booking detail
+  Future<Booking> getBookingDetail(
+    String bookingId, {
+    required String token,
+  }) async {
+    try {
+      final uri = Uri.parse('$_baseUrl/bookings/$bookingId');
+      Logger.info('Fetching booking detail: $uri');
+
+      final response = await _httpClient
+          .get(uri, headers: _getHeaders(token: token))
+          .timeout(_timeout);
+
+      return _handleResponse(response, (json) {
+        return Booking.fromJson(json['data'] as Map<String, dynamic>);
+      });
+    } catch (e) {
+      Logger.error('Error fetching booking detail: $e');
+      rethrow;
+    }
+  }
+
+  /// Create booking
+  Future<Booking> createBooking({
+    required String tongkronganId,
+    required DateTime bookingDate,
+    required String bookingTime,
+    required int numberOfPeople,
+    required String token,
+    String? notes,
+  }) async {
+    try {
+      final body = {
+        'tongkronganId': tongkronganId,
+        'bookingDate': bookingDate.toIso8601String(),
+        'bookingTime': bookingTime,
+        'numberOfPeople': numberOfPeople,
+        if (notes != null) 'notes': notes,
+      };
+
+      final uri = Uri.parse('$_baseUrl/bookings');
+      Logger.info('Creating booking: $uri');
+
+      final response = await _httpClient
+          .post(
+            uri,
+            headers: _getHeaders(token: token),
+            body: jsonEncode(body),
+          )
+          .timeout(_timeout);
+
+      return _handleResponse(response, (json) {
+        return Booking.fromJson(json['data'] as Map<String, dynamic>);
+      });
+    } catch (e) {
+      Logger.error('Error creating booking: $e');
+      rethrow;
+    }
+  }
+
+  /// Cancel booking
+  Future<void> cancelBooking(
+    String bookingId, {
+    required String token,
+    String? reason,
+  }) async {
+    try {
+      final body = {
+        if (reason != null) 'reason': reason,
+      };
+
+      final uri = Uri.parse('$_baseUrl/bookings/$bookingId/cancel');
+      Logger.info('Cancelling booking: $uri');
+
+      await _httpClient
+          .post(
+            uri,
+            headers: _getHeaders(token: token),
+            body: jsonEncode(body),
+          )
+          .timeout(_timeout);
+    } catch (e) {
+      Logger.error('Error cancelling booking: $e');
+      rethrow;
+    }
+  }
+
+  // ==================== FAVORITE ENDPOINTS ====================
+
+  /// Get favorites
+  Future<List<Favorite>> getFavorites({required String token}) async {
+    try {
+      final uri = Uri.parse('$_baseUrl/favorites');
+      Logger.info('Fetching favorites: $uri');
+
+      final response = await _httpClient
+          .get(uri, headers: _getHeaders(token: token))
+          .timeout(_timeout);
+
+      return _handleResponse(response, (json) {
+        final data = (json['data'] as List)
+            .map((item) => Favorite.fromJson(item as Map<String, dynamic>))
+            .toList();
+        return data;
+      });
+    } catch (e) {
+      Logger.error('Error fetching favorites: $e');
+      rethrow;
+    }
+  }
+
+  /// Add to favorites
+  Future<Favorite> addToFavorites(
+    String tongkronganId, {
+    required String token,
+  }) async {
+    try {
+      final body = {'tongkronganId': tongkronganId};
+      final uri = Uri.parse('$_baseUrl/favorites');
+      Logger.info('Adding to favorites: $uri');
+
+      final response = await _httpClient
+          .post(
+            uri,
+            headers: _getHeaders(token: token),
+            body: jsonEncode(body),
+          )
+          .timeout(_timeout);
+
+      return _handleResponse(response, (json) {
+        return Favorite.fromJson(json['data'] as Map<String, dynamic>);
+      });
+    } catch (e) {
+      Logger.error('Error adding to favorites: $e');
+      rethrow;
+    }
+  }
+
+  /// Remove from favorites
+  Future<void> removeFromFavorites(
+    String tongkronganId, {
+    required String token,
+  }) async {
+    try {
+      final uri = Uri.parse('$_baseUrl/favorites/$tongkronganId');
+      Logger.info('Removing from favorites: $uri');
+
+      await _httpClient
+          .delete(uri, headers: _getHeaders(token: token))
+          .timeout(_timeout);
+    } catch (e) {
+      Logger.error('Error removing from favorites: $e');
+      rethrow;
+    }
+  }
+
+  // ==================== USER ENDPOINTS ====================
+
+  /// Get user profile
+  Future<CustomerUser> getUserProfile({required String token}) async {
+    try {
+      final uri = Uri.parse('$_baseUrl/user/profile');
+      Logger.info('Fetching user profile: $uri');
+
+      final response = await _httpClient
+          .get(uri, headers: _getHeaders(token: token))
+          .timeout(_timeout);
+
+      return _handleResponse(response, (json) {
+        return CustomerUser.fromJson(json['data'] as Map<String, dynamic>);
+      });
+    } catch (e) {
+      Logger.error('Error fetching user profile: $e');
+      rethrow;
+    }
+  }
+
+  /// Update user profile
+  Future<CustomerUser> updateUserProfile({
+    required String token,
+    String? name,
+    String? phone,
+    String? bio,
+    String? address,
+    String? city,
+    String? avatar,
+  }) async {
+    try {
+      final body = <String, dynamic>{
+        if (name != null) 'name': name,
+        if (phone != null) 'phone': phone,
+        if (bio != null) 'bio': bio,
+        if (address != null) 'address': address,
+        if (city != null) 'city': city,
+        if (avatar != null) 'avatar': avatar,
+      };
+
+      final uri = Uri.parse('$_baseUrl/user/profile');
+      Logger.info('Updating user profile: $uri');
+
+      final response = await _httpClient
+          .patch(
+            uri,
+            headers: _getHeaders(token: token),
+            body: jsonEncode(body),
+          )
+          .timeout(_timeout);
+
+      return _handleResponse(response, (json) {
+        return CustomerUser.fromJson(json['data'] as Map<String, dynamic>);
+      });
+    } catch (e) {
+      Logger.error('Error updating user profile: $e');
+      rethrow;
+    }
+  }
+}
