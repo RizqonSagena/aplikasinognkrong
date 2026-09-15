@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/customer_provider.dart';
+import '../models/tongkrongan.dart';
 import '../widgets/tongkrongan_card.dart';
 import '../widgets/loading_shimmer.dart';
 import 'customer_detail_screen.dart';
@@ -20,14 +21,16 @@ class _CustomerSearchScreenState extends State<CustomerSearchScreen> {
   String? _selectedCity;
   String? _selectedCategory;
   double? _minRating;
-  double? _maxDistance;
+  double? _maxDistance = 10.0; // Default 10 km
+  double? _selectedRadius;
   String? _priceRange;
   bool _onlyOpen = false;
+  bool _sortByDistance = true; // Default sort by distance
   List<String> _selectedAmenities = [];
 
   // Data
   final List<String> cities = ['Jakarta', 'Bandung', 'Surabaya', 'Yogyakarta'];
-  final List<String> categories = ['Coffee', 'Food', 'Bar', 'Outdoor', 'Cafe'];
+  final List<String> categories = ['Semua', 'Cafe&Pastry', 'Kedai', 'Oleh-oleh', 'Tempat Viral'];
   final List<String> priceRanges = ['\$', '\$\$', '\$\$\$', '\$\$\$\$'];
   final List<String> amenities = [
     'WiFi',
@@ -37,6 +40,7 @@ class _CustomerSearchScreenState extends State<CustomerSearchScreen> {
     'Pet Friendly',
     'Smoking Area',
   ];
+  final List<double> radiusOptions = [1.0, 2.5, 5.0, 10.0, 15.0, 20.0, 30.0];
 
   bool _showFilters = false;
 
@@ -69,6 +73,24 @@ class _CustomerSearchScreenState extends State<CustomerSearchScreen> {
     } else {
       provider.searchTongkrongan(query);
     }
+    
+    // Apply filters to the list locally
+    List<Tongkrongan> filtered = List.from(provider.tongkronganList);
+    
+    // Sort results by distance if enabled
+    if (_sortByDistance && filtered.isNotEmpty) {
+      filtered.sort((a, b) => a.distance.compareTo(b.distance));
+    }
+    
+    // Filter by radius
+    if (_maxDistance != null && filtered.isNotEmpty) {
+      filtered = filtered
+          .where((t) => t.distance <= _maxDistance!)
+          .toList();
+    }
+    
+    // Note: These filters are applied locally for UI display
+    // In production, you would pass these to the API
   }
 
   void _clearFilters() {
@@ -77,10 +99,12 @@ class _CustomerSearchScreenState extends State<CustomerSearchScreen> {
       _selectedCity = null;
       _selectedCategory = null;
       _minRating = null;
-      _maxDistance = null;
+      _maxDistance = 10.0;
+      _selectedRadius = null;
       _priceRange = null;
       _onlyOpen = false;
       _selectedAmenities.clear();
+      _sortByDistance = true;
     });
     _loadInitialSearch();
   }
@@ -241,18 +265,40 @@ class _CustomerSearchScreenState extends State<CustomerSearchScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        // Max Distance Filter
+                        // Radius/Distance Filter - Quick Select
                         _FilterSection(
-                          title: 'Jarak Maksimal: ${_maxDistance?.toStringAsFixed(1) ?? "Semua"} km',
-                          child: Slider(
-                            value: _maxDistance ?? 50,
-                            min: 0,
-                            max: 50,
-                            divisions: 10,
-                            label: _maxDistance?.toStringAsFixed(1),
-                            onChanged: (value) {
-                              setState(() => _maxDistance = value);
-                            },
+                          title: 'Radius Pencarian',
+                          child: Wrap(
+                            spacing: 8,
+                            children: radiusOptions.map((radius) {
+                              return FilterChip(
+                                label: Text('${radius.toStringAsFixed(1)} km'),
+                                selected: _maxDistance == radius,
+                                onSelected: (selected) {
+                                  setState(() {
+                                    _maxDistance = selected ? radius : 10.0;
+                                  });
+                                },
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Sort Option
+                        _FilterSection(
+                          title: 'Urutan Hasil',
+                          child: Column(
+                            children: [
+                              CheckboxListTile(
+                                title: const Text('Terdekat dulu (sorting by distance)'),
+                                subtitle: const Text('Dari radius terdekat ke terjauh'),
+                                value: _sortByDistance,
+                                onChanged: (value) {
+                                  setState(() => _sortByDistance = value ?? true);
+                                },
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 16),

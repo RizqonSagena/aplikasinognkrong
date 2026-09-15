@@ -43,17 +43,17 @@ class AdminColors {
   static const Color errorContainer = Color(0xFFffdad6);
   static const Color onErrorContainer = Color(0xFF93000a);
 
-  // Surface
-  static const Color surface = Color(0xFFfbf8ff);
-  static const Color surfaceBright = Color(0xFFfbf8ff);
-  static const Color surfaceDim = Color(0xFFdbd9e1);
-  static const Color surfaceVariant = Color(0xFFe4e1ea);
-  static const Color surfaceContainerLowest = Color(0xFFffffff);
-  static const Color surfaceContainerLow = Color(0xFFf5f2fb);
-  static const Color surfaceContainer = Color(0xFFefecf5);
-  static const Color surfaceContainerHigh = Color(0xFFe4e7ef); // eae7ef
-  static const Color surfaceContainerHighest = Color(0xFFe4e1ea);
-  static const Color onSurface = Color(0xFF1b1b21);
+  // Surface - LIGHT THEME
+  static const Color surface = Color(0xFFFAF8F3);
+  static const Color surfaceBright = Color(0xFFFAF8F3);
+  static const Color surfaceDim = Color(0xFFE8E4DB);
+  static const Color surfaceVariant = Color(0xFFF0EDE4);
+  static const Color surfaceContainerLowest = Color(0xFFFFFFFF);
+  static const Color surfaceContainerLow = Color(0xFFFCF9F0);
+  static const Color surfaceContainer = Color(0xFFF5F1E8);
+  static const Color surfaceContainerHigh = Color(0xFFEEEAE1);
+  static const Color surfaceContainerHighest = Color(0xFFE8E4DB);
+  static const Color onSurface = Color(0xFF2B2520);
   static const Color onSurfaceVariant = Color(0xFF594139);
   static const Color inverseSurface = Color(0xFF303036);
   static const Color inverseOnSurface = Color(0xFFf2eff8);
@@ -62,9 +62,9 @@ class AdminColors {
   static const Color outline = Color(0xFF8d7167);
   static const Color outlineVariant = Color(0xFFe1bfb4);
 
-  // Background
-  static const Color background = Color(0xFFfbf8ff);
-  static const Color onBackground = Color(0xFF1b1b21);
+  // Background - LIGHT CREAM
+  static const Color background = Color(0xFFFAF8F3);
+  static const Color onBackground = Color(0xFF2B2520);
 
   /// ThemeData untuk Admin Portal
   static ThemeData get theme => ThemeData(

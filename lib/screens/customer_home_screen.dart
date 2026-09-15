@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/customer_provider.dart';
+import '../services/mock_notification_provider.dart';
+import '../models/notification.dart';
 import '../widgets/tongkrongan_card.dart';
 import '../widgets/category_filter.dart';
 import '../widgets/loading_shimmer.dart';
@@ -17,11 +19,11 @@ class CustomerHomeScreen extends StatefulWidget {
 
 class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   final List<String> categories = [
-    'Coffee',
-    'Food',
-    'Bar',
-    'Outdoor',
-    'Cafe',
+    'Semua',
+    'Cafe&Pastry',
+    'Kedai',
+    'Oleh-oleh',
+    'Tempat Viral',
   ];
 
   String? selectedCategory;
@@ -125,64 +127,78 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       ),
       body: Consumer<CustomerProvider>(
         builder: (context, provider, _) {
+          final activeNotifications = MockNotificationProvider.getActiveNotifications();
+          
           return CustomScrollView(
             controller: _scrollController,
             slivers: [
-              // Search Bar
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Search Field
-                      TextField(
-                        controller: _searchController,
-                        onChanged: _onSearch,
-                        decoration: InputDecoration(
-                          hintText: 'Cari tongkrongan...',
-                          prefixIcon: const Icon(Icons.search),
-                          suffixIcon: _searchController.text.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.clear),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    _onSearch('');
-                                  },
-                                )
-                              : null,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      // Category Filter
-                      const Text(
-                        'Kategori',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      CategoryFilter(
-                        categories: categories,
-                        selectedCategory: selectedCategory,
-                        onCategoryChanged: (category) {
-                          setState(() {
-                            selectedCategory = category;
-                            _currentPage = 1;
-                          });
-                          _loadTongkrongan();
-                        },
-                      ),
-                    ],
+              // Notification Banner (if any)
+              if (activeNotifications.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: _NotificationBanner(
+                    notification: activeNotifications.first,
                   ),
+                ),
+              // Search & Category Section
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Search Field
+                          TextField(
+                            controller: _searchController,
+                            onChanged: _onSearch,
+                            decoration: InputDecoration(
+                              hintText: 'Cari tongkrongan...',
+                              prefixIcon: const Icon(Icons.search),
+                              suffixIcon: _searchController.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear),
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        _onSearch('');
+                                      },
+                                    )
+                                  : null,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          // Category Filter
+                          const Text(
+                            'Kategori',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          CategoryFilter(
+                            categories: categories,
+                            selectedCategory: selectedCategory,
+                            onCategoryChanged: (category) {
+                              setState(() {
+                                selectedCategory = category;
+                                _currentPage = 1;
+                              });
+                              _loadTongkrongan();
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
               // Error State
@@ -332,5 +348,148 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         },
       ),
     );
+  }
+}
+
+/// Notification Banner Widget
+class _NotificationBanner extends StatelessWidget {
+  final AppNotification notification;
+
+  const _NotificationBanner({required this.notification});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _getBackgroundColor(),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: _getBorderColor(),
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          // Icon
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: _getIconBackgroundColor(),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              _getIcon(),
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Content
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  notification.typeDisplay,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: _getTextColor(),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  notification.title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  notification.message,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[700],
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Close Button
+          IconButton(
+            icon: const Icon(Icons.close, size: 18),
+            onPressed: () {
+              // Handle dismiss
+            },
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getBackgroundColor() {
+    switch (notification.type) {
+      case 'promo':
+        return Colors.orange.withOpacity(0.15);
+      case 'event':
+        return Colors.blue.withOpacity(0.15);
+      default:
+        return Colors.green.withOpacity(0.15);
+    }
+  }
+
+  Color _getBorderColor() {
+    switch (notification.type) {
+      case 'promo':
+        return Colors.orange.withOpacity(0.4);
+      case 'event':
+        return Colors.blue.withOpacity(0.4);
+      default:
+        return Colors.green.withOpacity(0.4);
+    }
+  }
+
+  Color _getIconBackgroundColor() {
+    switch (notification.type) {
+      case 'promo':
+        return Colors.orange;
+      case 'event':
+        return Colors.blue;
+      default:
+        return Colors.green;
+    }
+  }
+
+  Color _getTextColor() {
+    switch (notification.type) {
+      case 'promo':
+        return Colors.orange.shade700;
+      case 'event':
+        return Colors.blue.shade700;
+      default:
+        return Colors.green.shade700;
+    }
+  }
+
+  IconData _getIcon() {
+    switch (notification.type) {
+      case 'promo':
+        return Icons.local_offer;
+      case 'event':
+        return Icons.event;
+      default:
+        return Icons.notifications;
+    }
   }
 }

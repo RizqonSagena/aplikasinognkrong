@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:provider/provider.dart';
+import 'package:provider/provider.dart' as legacy_provider;
 import 'config/app_config.dart';
 import 'config/admin_colors.dart';
 import 'services/stitch_chat_provider.dart';
@@ -38,28 +38,17 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
-      child: MultiProvider(
+      child: legacy_provider.MultiProvider(
         providers: [
-          ChangeNotifierProvider(create: (_) => StitchChatProvider()),
-          ChangeNotifierProvider(create: (_) => CustomerProvider()),
-          ChangeNotifierProvider(create: (_) => OwnerProvider()),
+          legacy_provider.ChangeNotifierProvider(create: (_) => StitchChatProvider()),
+          legacy_provider.ChangeNotifierProvider(create: (_) => CustomerProvider()),
+          legacy_provider.ChangeNotifierProvider(create: (_) => OwnerProvider()),
         ],
         child: MaterialApp(
           title: 'Aplikasi Nongkrong',
           debugShowCheckedModeBanner: false,
           theme: AdminColors.theme,
-          darkTheme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.deepPurple,
-              brightness: Brightness.dark,
-            ),
-            useMaterial3: true,
-            appBarTheme: const AppBarTheme(
-              centerTitle: true,
-              elevation: 0,
-            ),
-          ),
-          themeMode: ThemeMode.system,
+          themeMode: ThemeMode.light,
           home: const RoleSelectionScreen(),
         ),
       ),
